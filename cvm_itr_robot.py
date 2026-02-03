@@ -82,10 +82,13 @@ class ParsedStatement:
 
 
 class CVMITRRobot:
-    def __init__(self, api_key: str, webhook_url: str = WEBHOOK_URL) -> None:
+    def __init__(
+        self, api_key: str, webhook_url: str = WEBHOOK_URL, filter_latest_exercise: bool = True
+    ) -> None:
         self.api_key = api_key
         self.webhook_url = webhook_url
         self.cnpj_ticker_map: Dict[str, str] = {}
+        self.filter_latest_exercise = filter_latest_exercise
 
     def load_cnpj_ticker_map(self, filepath: str) -> None:
         """Carrega mapeamento CNPJ → Ticker.
@@ -115,7 +118,7 @@ class CVMITRRobot:
         return pd.read_csv(filepath, sep=";", encoding="latin-1")
 
     def _filter_latest(self, df: pd.DataFrame) -> pd.DataFrame:
-        if "ORDEM_EXERC" in df.columns:
+        if self.filter_latest_exercise and "ORDEM_EXERC" in df.columns:
             df = df[df["ORDEM_EXERC"].str.upper() == "ÚLTIMO"]
         return df
 
@@ -204,6 +207,13 @@ class CVMITRRobot:
         if df.empty:
             return companies
 
+        def clean_value(value: object) -> Optional[float]:
+            if pd.isna(value):
+                return None
+            if isinstance(value, (float, int)):
+                return float(value)
+            return value
+
         for cnpj, group in df.groupby("CNPJ_CIA"):
             ticker = self.cnpj_ticker_map.get(str(cnpj).strip())
             if not ticker:
@@ -218,24 +228,24 @@ class CVMITRRobot:
                     {
                         "year": year,
                         "quarter": quarter,
-                        "revenue": row.get("revenue"),
-                        "gross_profit": row.get("gross_profit"),
-                        "ebit": row.get("ebit"),
-                        "ebitda": row.get("ebitda")
+                        "revenue": clean_value(row.get("revenue")),
+                        "gross_profit": clean_value(row.get("gross_profit")),
+                        "ebit": clean_value(row.get("ebit")),
+                        "ebitda": clean_value(row.get("ebitda"))
                         if not is_financial_institution(row.get("SETOR_ATIV", ""))
                         else None,
-                        "net_income": row.get("net_income"),
-                        "total_assets": row.get("total_assets"),
-                        "total_equity": row.get("total_equity"),
-                        "total_debt": row.get("total_debt"),
-                        "net_debt": row.get("net_debt"),
-                        "cash_and_equivalents": row.get("cash_and_equivalents"),
-                        "gross_margin": row.get("gross_margin"),
-                        "ebit_margin": row.get("ebit_margin"),
-                        "ebitda_margin": row.get("ebitda_margin"),
-                        "net_margin": row.get("net_margin"),
-                        "roe": row.get("roe"),
-                        "roa": row.get("roa"),
+                        "net_income": clean_value(row.get("net_income")),
+                        "total_assets": clean_value(row.get("total_assets")),
+                        "total_equity": clean_value(row.get("total_equity")),
+                        "total_debt": clean_value(row.get("total_debt")),
+                        "net_debt": clean_value(row.get("net_debt")),
+                        "cash_and_equivalents": clean_value(row.get("cash_and_equivalents")),
+                        "gross_margin": clean_value(row.get("gross_margin")),
+                        "ebit_margin": clean_value(row.get("ebit_margin")),
+                        "ebitda_margin": clean_value(row.get("ebitda_margin")),
+                        "net_margin": clean_value(row.get("net_margin")),
+                        "roe": clean_value(row.get("roe")),
+                        "roa": clean_value(row.get("roa")),
                     }
                 )
 
