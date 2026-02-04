@@ -207,6 +207,8 @@ class CVMITRRobot:
         if df.empty:
             return companies
 
+        df = df.replace([float("inf"), float("-inf")], pd.NA)
+
         def clean_value(value: object) -> Optional[float]:
             if pd.isna(value):
                 return None
